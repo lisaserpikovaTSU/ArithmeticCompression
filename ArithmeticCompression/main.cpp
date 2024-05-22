@@ -23,12 +23,7 @@ void make_freqList(const std::map<char, int> &freqAlph, std::list<SymbolInfo> &f
     }
     
     freqList.sort(freqComparison());
-    /*
-    std::cout << "freqList:" << std::endl;
-    for (const auto& info : freqList) {
-        std::cout << "Symbol: " << info.symbol << ", Frequency: " << info.freq << std::endl;
-    }
-     */
+     
 }
 
 void make_bound(std::list<SymbolInfo> &freqList, std::list<SymbolInfo>::iterator &curSymb, std::list<SymbolInfo>::iterator &prevSymb){
@@ -73,6 +68,32 @@ double make_code(std::ifstream &inp, std::ofstream &out) {
     std::list<SymbolInfo>::iterator prevSymb = freqList.begin();
     
     make_bound(freqList, curSymb, prevSymb);
+    
+    /*
+    std::cout << "freqList:" << std::endl;
+    for (const auto& info : freqList) {
+        std::cout << "Symbol: " << info.symbol << ", Frequency: " << info.freq << ", Prev: " << info.prev << ", Next: " << info.next << std::endl;
+    }
+    */
+    
+    int bits = 0;
+    
+    for (Iterator = freqAlph.begin(); Iterator != freqAlph.end(); Iterator++){
+        if (Iterator->second != 0) bits += 40;
+        
+        out.write((char*)(&bits), sizeof(bits));
+        
+        for (int i = 0; i < 256; i++){
+            if (freqAlph[char(i)] > 0){
+                char currentSymbol = char(i);
+                out.write((char*)(&currentSymbol), sizeof(currentSymbol));
+                out.write((char*)(&freqAlph[char(i)]), sizeof(freqAlph[char(i)]));
+            }
+        }
+        inp.clear();
+        inp.seekg(0);
+        
+    }
     
     inp.close();
     out.close();
