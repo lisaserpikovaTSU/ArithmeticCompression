@@ -193,8 +193,6 @@ double make_code(std::ifstream &inp, std::ofstream &out)
         }
     }
 
-
-    
     out << Byte;
     
     inp.clear();
@@ -209,13 +207,45 @@ double make_code(std::ifstream &inp, std::ofstream &out)
     return sizeOut / sizeInp;
 }
 
+void decode (std::ifstream &inp, std::ofstream &out){
+    if (!inp.is_open())
+    {
+        std::cout << "Ошибка открытия файла!" << "\n";
+    }
+    int cnt = 0, res_bits, freq_bits;
+    char symb;
+    
+    std::map<char, int> freqAlph;
+    std::map<char, int> :: iterator Iter;
+    std::list<SymbolInfo> freqList;
+    
+    inp.read((char*)&res_bits, sizeof(res_bits));
+    while (res_bits > 0)
+    {
+        inp.read((char*)&symb, sizeof(symb));
+        inp.read((char*)&freq_bits, sizeof(freq_bits));
+        res_bits -= 40;
+        freqAlph[symb] = freq_bits;
+    }
+    
+    make_freqList(freqAlph, freqList);
+    
+}
+
 int main(){
     std::ifstream inp("file.txt", std::ios::out | std::ios::binary);
     std::ofstream out("out_file.txt", std::ios::out | std::ios::binary);
     
     double value = make_code(inp, out);
-    
     std::cout << value << "\n";
+    
+    std::ifstream inp_coded("out_file.txt", std::ios::out | std::ios::binary);
+    std::ofstream out_decoded("out_file.txt", std::ios::out | std::ios::binary);
+    
+    decode(inp_coded, out_decoded);
+    
+    inp_coded.close();
+    out_decoded.close();
     
     return 0;
 }
