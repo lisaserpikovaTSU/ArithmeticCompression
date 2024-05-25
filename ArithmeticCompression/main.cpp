@@ -3,6 +3,7 @@
 #include <map>
 #include <list>
 #include <algorithm>
+#include <vector>
 
 struct SymbolInfo{
     char symbol;
@@ -34,7 +35,7 @@ void make_bound(std::list<SymbolInfo> &freqList, std::list<SymbolInfo>::iterator
     
     for(; curSymb != freqList.end(); curSymb++){
         curSymb->l_lim = prevSymb->h_lim;
-        curSymb->h_lim = prevSymb->l_lim + curSymb->freq;
+        curSymb->h_lim = curSymb->l_lim + curSymb->freq;
         prevSymb++;
     }
 }
@@ -46,190 +47,233 @@ double make_code(std::ifstream &inp, std::ofstream &out)
         std::cout << "Ошибка открытия файла!" << "\n";
         return 0.0;
     }
-    
-    int cnt = 0;
+
+    int count = 0;
     std::map <char, int> freqAlph;
+    std::map <char, int> ::iterator Iterator;
     std::list<SymbolInfo> freqList;
-    std::map<char, int>::iterator Iterator;
-    
+
     while(!inp.eof())
     {
-        char symbol = inp.get();
-        freqAlph[symbol]++;
-        cnt++;
+        char currentSymbol = inp.get();
+        freqAlph[currentSymbol]++;
+        count++;
     }
-    /*
-     std::cout << "freqAlph:" << std::endl;
-     for (const auto& pair : freqAlph){
-     std::cout << "Symbol: " << pair.first << ", Frequency: " << pair.second << std::endl;
-     }
-     */
+
     make_freqList(freqAlph, freqList);
-    
-    freqList.begin()-> h_lim = freqList.begin()->freq;
-    freqList.begin()-> l_lim = 0;
-    
-    std::list<SymbolInfo>::iterator curSymb = freqList.begin();
-    std::list<SymbolInfo>::iterator prevSymb = freqList.begin();
-    
-    make_bound(freqList, curSymb, prevSymb);
-    
-    /*
-     std::cout << "freqList:" << std::endl;
-     for (const auto& info : freqList) {
-     std::cout << "Symbol: " << info.symbol << ", Frequency: " << info.freq << ", l_lim: " << info.l_lim << ", h_lim: " << info.h_lim << std::endl;
-     }
-     */
-    
-    int bits = 0;
-    
-    for (Iterator = freqAlph.begin(); Iterator != freqAlph.end(); Iterator++){
-        if (Iterator->second != 0){
+
+    freqList.begin()-> h_lim=freqList.begin()->freq;
+    freqList.begin()->l_lim=0;
+
+    std::list<SymbolInfo>::iterator currentSymbol = freqList.begin();
+    std::list<SymbolInfo>::iterator previousSymbol = freqList.begin();
+
+    make_bound(freqList, currentSymbol, previousSymbol);
+    int bits=0;
+
+    for (Iterator = freqAlph.begin(); Iterator != freqAlph.end(); Iterator++)
+        if (Iterator->second != 0)
             bits += 40;
-        }
-    }
-    
+
     out.write((char*)(&bits), sizeof(bits));
-    
-    for (int i = 0; i < 256; i++)
+
+    for (int i=0; i<256; i++)
     {
-        if (freqAlph[char(i)] > 0)
+        if (freqAlph[char(i)]>0)
         {
-            char currentSymbol = char(i);
-            out.write((char*)(&currentSymbol), sizeof(currentSymbol));
+            char curSymbol = char(i);
+            out.write((char*)(&curSymbol), sizeof(curSymbol));
             out.write((char*)(&freqAlph[char(i)]), sizeof(freqAlph[char(i)]));
         }
     }
-    
+
     inp.clear();
     inp.seekg(0);
-    
-    int low_lim=0, high_lim=65535, div=0, intDenomenator=freqList.back().l_lim, firstQuarter=(high_lim+1)/4, half=firstQuarter*2, thirdQuarter=firstQuarter*3, bits_to_follow = 0;
-    char Byte = 0;
-    cnt = 0;
-    
-    while (!inp.eof())
+
+    int lowBound=0, upBound=65535, divisor =0, intervalDenominator=freqList.back().h_lim, firstQuarter=(upBound+1)/4, Half=firstQuarter*2, thirdQuarter=firstQuarter*3, bits_to_follow=0;
+    char Byte=0;
+    count=0;
+
+    while(!inp.eof())
     {
-        char currentSymbol = inp.get(); div++;
-        for (curSymb = freqList.begin(); curSymb != freqList.end(); curSymb++)
+        char curSymbol =inp.get(); divisor++;
+        for(currentSymbol=freqList.begin(); currentSymbol!=freqList.end(); currentSymbol++)
         {
-            if (currentSymbol == curSymb -> symbol) break;
+            if(curSymbol==currentSymbol->symbol) break;
         }
-        
-        if (currentSymbol != curSymb -> symbol)
+
+        if(curSymbol!=currentSymbol->symbol)
         {
-            std::cout<< "Ошибка !" <<"\n";
+            std::cout<<"Ошибка!"<<"\n";
             break;
         }
-        
-        int prev_low_lim = low_lim;
-        low_lim = low_lim + curSymb -> l_lim * (high_lim - low_lim + 1) / intDenomenator;
-        high_lim = prev_low_lim + curSymb -> h_lim * (high_lim - prev_low_lim + 1) / intDenomenator - 1;
-        
-        while (true)
+
+        int prevLowBound=lowBound;
+        lowBound=lowBound+currentSymbol->l_lim*(upBound-lowBound+1)/intervalDenominator;
+        upBound= prevLowBound+currentSymbol-> h_lim*(upBound- prevLowBound+1)/intervalDenominator-1;
+
+        while(true)
         {
-            if (high_lim < half)
+            if(upBound<Half)
             {
-                cnt++;
-                
-                if (cnt == 8)
+                count++;
+
+                if(count==8)
                 {
-                    cnt = 0;
+                    count = 0;
                     out << Byte;
                     Byte = 0;
                 }
-                for (; bits_to_follow>0; bits_to_follow--)
+
+                for(; bits_to_follow>0; bits_to_follow--)
                 {
-                    Byte = Byte | (1<<(7-cnt));
-                    cnt++;
-                    
-                    if (cnt == 8)
+                    Byte =Byte | (1<<(7-count));
+                    count++;
+
+                    if(count==8)
                     {
-                        cnt = 0;
+                        count = 0;
                         out << Byte;
                         Byte = 0;
                     }
                 }
             }
-            
-            else if (low_lim >= half)
+
+            else if(lowBound>=Half)
             {
-                Byte = Byte | (1<<(7 - cnt));
-                cnt++;
-                
-                if (cnt == 8)
+                Byte=Byte | (1<<(7-count));
+                count++;
+
+                if(count==8)
                 {
-                    cnt = 0;
+                    count = 0;
                     out << Byte;
                     Byte = 0;
                 }
-                for (; bits_to_follow>0; bits_to_follow--)
+
+                for(; bits_to_follow>0; bits_to_follow--)
                 {
-                    Byte = Byte | (1<<(7-cnt));
-                    cnt++;
-                    
-                    if (cnt == 8)
+                    count++;
+                    if(count==8)
                     {
-                        cnt = 0;
+                        count = 0;
                         out << Byte;
                         Byte = 0;
                     }
                 }
-                
-                low_lim -= half;
-                high_lim -= half;
+
+                lowBound-=Half;
+                upBound-=Half;
             }
-            
-            else if ((low_lim >= firstQuarter) && (high_lim < thirdQuarter))
+
+            else if((lowBound>=firstQuarter) && (upBound<thirdQuarter))
             {
                 bits_to_follow++;
-                low_lim -= firstQuarter;
-                high_lim -= firstQuarter;
+                lowBound-=firstQuarter;
+                upBound-=firstQuarter;
             }
             else break;
-            
-            low_lim += low_lim;
-            high_lim += high_lim + 1;
+
+            lowBound+=lowBound;
+            upBound+=upBound+1;
         }
     }
+    out<<Byte;
 
-    out << Byte;
-    
     inp.clear();
     inp.seekg(0, std::ios::end);
     out.seekp(0, std::ios::end);
-    
+
     double sizeInp = inp.tellg();
     double sizeOut = out.tellp();
-    
+
     inp.close();
     out.close();
     return sizeOut / sizeInp;
 }
 
-void decode (std::ifstream &inp, std::ofstream &out){
+bool decode(std::ifstream &inp, std::ofstream &out)
+{
     if (!inp.is_open())
     {
         std::cout << "Ошибка открытия файла!" << "\n";
+        return false;
     }
-    int cnt = 0, res_bits, freq_bits;
-    char symb;
-    
-    std::map<char, int> freqAlph;
-    std::map<char, int> :: iterator Iter;
+    int count = 0, res_bits, freq_bits;
+    char sym;
+
+    std::map <char, int> freqAlph;
+    std::map <char, int> ::iterator Iterator;
     std::list<SymbolInfo> freqList;
-    
+
     inp.read((char*)&res_bits, sizeof(res_bits));
-    while (res_bits > 0)
+    while (res_bits>0)
     {
-        inp.read((char*)&symb, sizeof(symb));
+        inp.read((char*)&sym, sizeof(sym));
         inp.read((char*)&freq_bits, sizeof(freq_bits));
-        res_bits -= 40;
-        freqAlph[symb] = freq_bits;
+        res_bits-=40;
+        freqAlph[sym]=freq_bits;
     }
-    
+
     make_freqList(freqAlph, freqList);
-    
+
+    freqList.begin()-> h_lim=freqList.begin()->freq;
+    freqList.begin()->l_lim=0;
+
+    std::list<SymbolInfo>::iterator currentSymbol = freqList.begin();
+    std::list<SymbolInfo>::iterator previousSymbol = freqList.begin();
+
+    make_bound(freqList, currentSymbol, previousSymbol);
+
+    count=0;
+    int low_lim=0, high_lim=65535, intervalDenominator=freqList.back().h_lim, firstQuarter=(high_lim+1)/4, Half=firstQuarter*2, thirdQuarter=firstQuarter*3, value=(inp.get()<<8) | inp.get();
+    char symbl=inp.get();
+
+    while(!inp.eof())
+    {
+        int calFreq = ((value - low_lim + 1) * intervalDenominator - 1) / (high_lim - low_lim + 1);
+        for (currentSymbol = freqList.begin(); currentSymbol-> h_lim <= calFreq; currentSymbol++);
+        int prev_low_lim = low_lim;
+        low_lim = low_lim + (currentSymbol->l_lim) * (high_lim - low_lim + 1) / intervalDenominator;
+        high_lim = prev_low_lim + (currentSymbol-> h_lim) * (high_lim - prev_low_lim + 1) / intervalDenominator - 1;
+
+        while(true)
+        {
+            if (high_lim < Half);
+            else if (low_lim >= Half)
+            {
+                low_lim -= Half;
+                high_lim -= Half;
+                value -= Half;
+            }
+
+            else if ((low_lim >= firstQuarter) && (high_lim < thirdQuarter))
+            {
+                low_lim -= firstQuarter;
+                high_lim -= firstQuarter;
+                value -= firstQuarter;
+            }
+
+            else break;
+
+            low_lim += low_lim;
+            high_lim += high_lim + 1;
+            value += value + (((short) symbl >> (7 - count)) & 1);
+            count++;
+
+            if (count == 8)
+            {
+                symbl = inp.get();
+                count = 0;
+            }
+        }
+
+        out << currentSymbol->symbol;
+    }
+
+    inp.close();
+    out.close();
+    return true;
 }
 
 int main(){
@@ -240,9 +284,12 @@ int main(){
     std::cout << value << "\n";
     
     std::ifstream inp_coded("out_file.txt", std::ios::out | std::ios::binary);
-    std::ofstream out_decoded("out_file.txt", std::ios::out | std::ios::binary);
+    std::ofstream out_decoded("decoded_file.txt", std::ios::out | std::ios::binary);
     
-    decode(inp_coded, out_decoded);
+    if (decode(inp_coded, out_decoded))
+            std::cout << "Декодированно!" << "\n";
+        else
+            std::cout << "Не удалось декодировать!" << "\n";
     
     inp_coded.close();
     out_decoded.close();
